@@ -1,15 +1,12 @@
 package controller
 
 import (
+	"backend/db"
 	"backend/models"
 	"backend/utils"
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
-
-var users []models.User
-var userID = 1
 
 func Signup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -27,13 +24,18 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.ID = userID
-	userID++
 	req.Password = hashedPassword
-	users = append(users, req)
+
+	result := db.DB.Create(&req)
+	if result.Error != nil {
+		http.Error(w, "Error creating user", http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "User created successfully"})
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "User created successfully",
+	})
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -45,18 +47,22 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	var req models.User
 	json.NewDecoder(r.Body).Decode(&req)
 
-	for _, user := range users {
-		if user.Username == req.Username {
-			if utils.CheckPasswordHash(req.Password, user.Password) {
-				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
-				return
-			}
-			break
-		}
+	var user models.User
+
+	result := db.DB.Where("username = ?", req.Username).First(&user)
+
+	if result.Error != nil {
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		return
 	}
 
-	http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+	if !utils.CheckPasswordHash(req.Password, user.Password) {
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		return
+	}
 
-	fmt.Println("Current users:", users)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Login successful",
+	})
+
 }

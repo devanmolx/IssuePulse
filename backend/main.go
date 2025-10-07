@@ -1,20 +1,39 @@
 package main
 
 import (
+	"backend/db"
+	"backend/models"
 	"backend/routes"
 	"fmt"
 	"net/http"
+	"os"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
 
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("No .env file found, using environment variables")
+	}
+
+	if err := db.Connect(); err != nil {
+		fmt.Println("Error connecting to database:", err)
+		return
+	}
+
+	db.DB.AutoMigrate(&models.User{})
+
 	routes.AuthRoutes()
 
-	fmt.Println("Server starting at http://localhost:8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	err := http.ListenAndServe(":8080", nil)
+	fmt.Println("Server starting at http://localhost:" + port)
 
-	if err != nil {
-		fmt.Println("Error starting server:", err)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		fmt.Println("Server failed:", err)
 	}
 }
