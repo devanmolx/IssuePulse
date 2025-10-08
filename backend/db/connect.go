@@ -1,6 +1,7 @@
 package db
 
 import (
+	"backend/models"
 	"fmt"
 	"os"
 
@@ -25,5 +26,11 @@ func Connect() error {
 	}
 
 	fmt.Println("Database connection established")
+
+	err = DB.AutoMigrate(&models.User{}, &models.Repo{}, &models.Issue{})
+
+	if err != nil {
+		return fmt.Errorf("failed to migrate database: %w", err)
+	}
 	return nil
 }
